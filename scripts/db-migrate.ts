@@ -8,6 +8,7 @@ import {
   closeDatabase,
   initializeDatabase,
 } from '../server/src/lib/prisma.ts';
+import { verifyMigrations } from './db-verify.ts';
 import { formatCliError } from './support/cli-error.ts';
 import { runMigrateDeploy } from './support/prisma-cli.ts';
 
@@ -30,6 +31,14 @@ async function main(): Promise<void> {
   } catch (error) {
     throw new Error('MIGRATION_DEPLOY_FAILED', { cause: error });
   }
+
+  const verification = verifyMigrations({
+    databaseFilePath: config.databaseFilePath,
+  });
+
+  console.log(
+    `[db:migrate] verify=ok local=${verification.localMigrations.length} applied=${verification.migrationCount}`,
+  );
 
   const health = await initializeDatabase({ config });
 

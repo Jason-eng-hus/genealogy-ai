@@ -101,6 +101,7 @@ describe('database scripts', () => {
 
       expect(result.status).toBe(0);
       expect(result.output).toContain('[db:migrate] applying migrations...');
+      expect(result.output).toContain('[db:migrate] verify=ok');
       expect(result.output).toContain('journal_mode=wal');
       expect(result.output).toContain('foreign_keys=on');
       expect(result.output).toContain('busy_timeout=5000');
