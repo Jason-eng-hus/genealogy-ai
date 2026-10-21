@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+data/*.db
+data/*.db-*
+data/uploads/
+data/backups/
+server/prisma/.tmp/
+*.log

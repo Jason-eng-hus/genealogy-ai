@@ -1,0 +1,382 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String
+  displayName  String
+  role         String    @default("VIEWER")
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs            AuditLog[]       @relation("AuditActor")
+  reviewsRequested     ReviewRequest[]  @relation("ReviewRequester")
+  reviewsDecided       ReviewRequest[]  @relation("ReviewDecider")
+  narrativesCreated    Narrative[]      @relation("NarrativeCreator")
+  narrativesConfirmed  Narrative[]      @relation("NarrativeConfirmer")
+  draftsReviewed       AiDraft[]        @relation("DraftReviewer")
+  gedcomImports        GedcomImport[]   @relation("GedcomImporter")
+
+  @@index([role])
+}
+
+model Family {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  persons Person[]
+}
+
+model Person {
+  id            String   @id @default(cuid())
+  familyId      String
+  surname       String
+  givenName     String
+  courtesyName  String?
+  alias         String?
+  gender        String   @default("UNKNOWN")
+  livingStatus  String   @default("LIVING")
+
+  birthYear         Int?
+  birthMonth        Int?
+  birthDay          Int?
+  birthDateText     String?
+  birthPrecision    String  @default("UNKNOWN")
+  birthApproximate  Boolean @default(false)
+  birthCalendar     String  @default("UNKNOWN")
+  birthPlace        String?
+
+  deathYear         Int?
+  deathMonth        Int?
+  deathDay          Int?
+  deathDateText     String?
+  deathPrecision    String  @default("UNKNOWN")
+  deathApproximate  Boolean @default(false)
+  deathCalendar     String  @default("UNKNOWN")
+  deathPlace        String?
+
+  occupation  String?
+  biography   String?
+  generation  Int?
+  branch      String?
+  status      String   @default("ACTIVE")
+  mergedIntoId String?
+  version     Int      @default(1)
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  family     Family  @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  mergedInto Person? @relation("PersonMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom Person[] @relation("PersonMerge")
+
+  relationsAsA Relation[] @relation("RelationPersonA")
+  relationsAsB Relation[] @relation("RelationPersonB")
+  events       Event[]
+  narratives   Narrative[]
+
+  @@index([familyId, status])
+  @@index([surname, givenName])
+  @@index([alias])
+  @@index([generation])
+  @@index([branch])
+  @@index([birthYear])
+  @@index([deathYear])
+  @@index([deletedAt])
+}
+
+model Relation {
+  id          String  @id @default(cuid())
+  type        String
+  personAId   String
+  personBId   String
+  parentRole  String?
+  childKind   String?
+  spouseKind  String?
+  certainty   String  @default("CERTAIN")
+  note        String?
+  version     Int     @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  personA Person  @relation("RelationPersonA", fields: [personAId], references: [id], onDelete: Restrict)
+  personB Person  @relation("RelationPersonB", fields: [personBId], references: [id], onDelete: Restrict)
+  events  Event[]
+
+  @@unique([type, personAId, personBId])
+  @@index([personAId, type])
+  @@index([personBId, type])
+  @@index([type])
+}
+
+model Event {
+  id          String  @id @default(cuid())
+  type        String
+  personId    String?
+  relationId  String?
+
+  year         Int?
+  month        Int?
+  day          Int?
+  dateText     String?
+  precision    String  @default("UNKNOWN")
+  approximate  Boolean @default(false)
+  calendar     String  @default("UNKNOWN")
+
+  place       String?
+  description String?
+  certainty   String  @default("CERTAIN")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  person   Person?   @relation(fields: [personId], references: [id], onDelete: Restrict)
+  relation Relation? @relation(fields: [relationId], references: [id], onDelete: Restrict)
+
+  @@index([personId, type])
+  @@index([relationId, type])
+  @@index([type])
+  @@index([year])
+}
+
+model Source {
+  id                  String  @id @default(cuid())
+  type                String
+  title               String
+  description         String?
+  fileName            String?
+  mimeType            String?
+  sizeBytes           Int?
+  fileHash            String?
+  storagePath         String?
+  rawText             String?
+  transcriptionStatus String  @default("PENDING")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  citations     Citation[]
+  aiJobs        AiJob[]
+  gedcomImports GedcomImport[]
+
+  @@index([fileHash])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Citation {
+  id          String  @id @default(cuid())
+  sourceId    String
+  targetType  String
+  targetId    String
+  fieldPath   String
+  quote       String
+  page        String?
+  confidence  Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  source Source @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([sourceId])
+  @@index([targetType, targetId])
+  @@index([fieldPath])
+}
+
+model AiJob {
+  id            String  @id @default(cuid())
+  kind          String
+  sourceId      String?
+  status        String  @default("PENDING")
+  provider      String
+  model         String?
+  promptVersion String
+  inputHash     String
+  maskedInput   String?
+  maskMap       String?
+  outputJson    String?
+  errorMessage  String?
+  statsJson     String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  source Source?   @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  drafts AiDraft[]
+
+  @@index([sourceId])
+  @@index([status])
+  @@index([inputHash])
+  @@index([createdAt])
+}
+
+model AiDraft {
+  id                String  @id @default(cuid())
+  jobId             String
+  draftType         String
+  tempId            String
+  payloadJson       String
+  sourceQuote       String
+  confidence        Float
+  warningsJson      String?
+  status            String  @default("PENDING")
+  reviewedById      String?
+  reviewedAt        DateTime?
+  appliedEntityType String?
+  appliedEntityId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  job        AiJob @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  reviewedBy User? @relation("DraftReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([jobId, draftType, tempId])
+  @@index([jobId, status])
+  @@index([status])
+  @@index([reviewedById])
+}
+
+model Narrative {
+  id                String   @id @default(cuid())
+  subjectPersonId   String
+  title             String
+  paramsJson        String?
+  contentJson       String
+  status            String   @default("DRAFT")
+  createdById       String
+  confirmedById     String?
+  confirmedAt       DateTime?
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subjectPerson Person  @relation(fields: [subjectPersonId], references: [id], onDelete: Restrict)
+  createdBy     User    @relation("NarrativeCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  confirmedBy   User?   @relation("NarrativeConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  @@index([subjectPersonId])
+  @@index([status])
+  @@index([createdById])
+  @@index([confirmedById])
+}
+
+model ConsistencyIssue {
+  id            String   @id @default(cuid())
+  code          String
+  severity      String
+  entityType    String
+  entityId      String
+  message       String
+  detailsJson   String?
+  dedupeKey     String   @unique
+  status        String   @default("OPEN")
+  ignoreReason  String?
+  ignoredById   String?
+  ignoredAt     DateTime?
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  resolvedAt    DateTime?
+  resolvedById  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, severity, lastSeenAt])
+  @@index([code])
+  @@index([entityType, entityId])
+  @@index([lastSeenAt])
+}
+
+model ReviewRequest {
+  id                  String   @id @default(cuid())
+  action              String
+  payloadJson         String
+  diffJson            String
+  status              String   @default("PENDING")
+  requestedById       String
+  decidedById         String?
+  decisionComment     String?
+  expectedVersionsJson String
+  decidedAt           DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  requestedBy User  @relation("ReviewRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  decidedBy   User? @relation("ReviewDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([action])
+  @@index([requestedById])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actorRole   String
+  action      String
+  entityType  String?
+  entityId    String?
+  beforeJson  String?
+  afterJson   String?
+  reason      String?
+  ip          String?
+  userAgent   String?
+  requestId   String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([entityType, entityId, createdAt])
+}
+
+model GedcomImport {
+  id            String   @id @default(cuid())
+  sourceId      String
+  status        String   @default("PARSED")
+  fileHash      String
+  previewJson   String?
+  mappingJson   String?
+  statsJson     String?
+  errorMessage  String?
+  createdById   String
+  committedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  source    Source      @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  createdBy User        @relation("GedcomImporter", fields: [createdById], references: [id], onDelete: Restrict)
+  xrefs     GedcomXref[]
+
+  @@index([fileHash])
+  @@index([status])
+  @@index([sourceId])
+  @@index([createdById])
+}
+
+model GedcomXref {
+  id         String   @id @default(cuid())
+  importId   String
+  xref       String
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  gedcomImport GedcomImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, xref])
+  @@index([entityType, entityId])
+}
