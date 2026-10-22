@@ -4,7 +4,15 @@ import { fileURLToPath } from 'node:url';
 import type { Express } from 'express';
 import type { Logger } from 'pino';
 import { createApp } from './app.ts';
+import {
+  loadAuthConfig,
+  type AuthConfig,
+} from './config/auth.ts';
 import { loadAppConfig, type AppConfig } from './config/env.ts';
+import {
+  loadSecurityConfig,
+  type SecurityConfig,
+} from './config/security.ts';
 import { createLogger } from './lib/logger.ts';
 import {
   closeDatabase,
@@ -25,6 +33,8 @@ export interface StartedServer {
 
 export interface StartServerOptions {
   config?: AppConfig;
+  auth?: AuthConfig;
+  security?: SecurityConfig;
   logger?: Logger;
 }
 
@@ -65,6 +75,8 @@ export async function startServer(
   options: StartServerOptions = {},
 ): Promise<StartedServer> {
   const config = options.config ?? loadAppConfig();
+  const auth = options.auth ?? loadAuthConfig();
+  const security = options.security ?? loadSecurityConfig();
   const logger =
     options.logger ??
     createLogger({
@@ -74,7 +86,7 @@ export async function startServer(
   const databaseHealth = await initializeDatabase({
     config: config.database,
   });
-  const app = createApp({ config, logger });
+  const app = createApp({ config, auth, security, logger });
 
   let server: Server;
 

@@ -1,0 +1,22 @@
+export const designTokens = {
+  colorPrimary: '#2F5D57',
+  colorSeal: '#A6442F',
+  colorPaper: '#F5F2EA',
+  colorSurface: '#FFFFFF',
+  colorText: '#262626',
+  colorTextSecondary: '#5C5C5C',
+  colorBorder: '#DED7C9',
+  colorSuccess: '#3D7A57',
+  colorWarning: '#B7791F',
+  colorError: '#B23A34',
+  colorSelectedBg: '#E7EFEC',
+  fontFamilySans:
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif",
+  fontFamilySerif: "'Songti SC', 'STSong', 'SimSun', serif",
+  radius: 8,
+  radiusLarge: 12,
+  siderWidth: 240,
+  siderCollapsedWidth: 72,
+  headerHeight: 64,
+  contentMaxWidth: 1440,
+} as const;

@@ -3,7 +3,9 @@ import express from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app.ts';
+import { resolveAuthConfig } from '../src/config/auth.ts';
 import { resolveAppConfig } from '../src/config/env.ts';
+import { resolveSecurityConfig } from '../src/config/security.ts';
 import { AppError } from '../src/lib/errors.ts';
 import {
   asyncHandler,
@@ -35,7 +37,15 @@ beforeAll(async () => {
   const logger = createLogger({ level: 'silent', appEnv: 'test' });
 
   await initializeDatabase({ config: config.database });
-  app = createApp({ config, logger });
+  app = createApp({
+    config,
+    auth: resolveAuthConfig({
+      NODE_ENV: 'test',
+      JWT_SECRET: 'test-auth-secret-0123456789abcdef',
+    }),
+    security: resolveSecurityConfig({ NODE_ENV: 'test' }),
+    logger,
+  });
 });
 
 afterAll(async () => {

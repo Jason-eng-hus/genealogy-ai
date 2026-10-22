@@ -185,6 +185,7 @@ NODE_ENV=test npm run backup
 |---|---|---|---|---|
 | `20261021093501_init` | 初始 15 个模型、约束与索引 | 技术负责人 | 3.1.1 | 已提交 |
 | `20261021143602_query_indexes` | 查询复合索引替换冗余单列索引 | 技术负责人 | 3.2.2 | 已提交，待部署 |
+| `20261022064442_audit_append_only` | `AuditLog` 只追加触发器，禁止 UPDATE/DELETE | 技术负责人 | 2.1.3 | 已提交，待部署 |
 
 新增迁移时必须在此表追加一行；迁移目录被删除或改名时同步更新。`server/tests/migration-docs.spec.ts` 会校验表格与 `server/prisma/migrations/` 目录完全一致。
 

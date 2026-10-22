@@ -116,6 +116,8 @@ describe('server lifecycle', () => {
           TRUST_PROXY: 'false',
           LOG_LEVEL: 'info',
           DATABASE_URL: database.url,
+          JWT_SECRET: 'test-auth-secret-0123456789abcdef',
+          COOKIE_SECURE: 'false',
         },
         stdio: ['pipe', 'pipe', 'pipe'],
       },

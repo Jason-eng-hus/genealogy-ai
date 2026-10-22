@@ -3,11 +3,13 @@ import path from 'node:path';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.ts';
+import { resolveAuthConfig } from '../src/config/auth.ts';
 import {
   PROJECT_ROOT,
   resolveAppConfig,
   type AppConfig,
 } from '../src/config/env.ts';
+import { resolveSecurityConfig } from '../src/config/security.ts';
 import { createLogger } from '../src/lib/logger.ts';
 import {
   closeDatabase,
@@ -58,7 +60,15 @@ beforeAll(async () => {
   const logger = createLogger({ level: 'silent', appEnv: 'test' });
 
   await initializeDatabase({ config: config.database });
-  app = createApp({ config, logger });
+  app = createApp({
+    config,
+    auth: resolveAuthConfig({
+      NODE_ENV: 'test',
+      JWT_SECRET: 'test-auth-secret-0123456789abcdef',
+    }),
+    security: resolveSecurityConfig({ NODE_ENV: 'test' }),
+    logger,
+  });
 });
 
 afterAll(async () => {
@@ -106,6 +116,11 @@ describe('health endpoint', () => {
   it('returns 503 when the database probe fails', async () => {
     const failingApp = createApp({
       config,
+      auth: resolveAuthConfig({
+        NODE_ENV: 'test',
+        JWT_SECRET: 'test-auth-secret-0123456789abcdef',
+      }),
+      security: resolveSecurityConfig({ NODE_ENV: 'test' }),
       logger: createLogger({ level: 'silent', appEnv: 'test' }),
       probeDatabase: async () => {
         throw new Error('probe failed');
