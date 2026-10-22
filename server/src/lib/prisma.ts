@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { performance } from 'node:perf_hooks';
 import {
   loadDatabaseConfig,
   type DatabaseConfig,
@@ -261,6 +262,23 @@ export function getDatabaseHealth(): DatabaseHealth {
   }
 
   return databaseHealth;
+}
+
+export interface DatabaseProbeResult extends DatabaseHealth {
+  latencyMs: number;
+}
+
+export async function probeDatabase(): Promise<DatabaseProbeResult> {
+  const client = getPrisma();
+  const health = getDatabaseHealth();
+  const startedAt = performance.now();
+
+  await client.$queryRawUnsafe('SELECT 1');
+
+  return {
+    ...health,
+    latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
+  };
 }
 
 export async function closeDatabase(): Promise<void> {

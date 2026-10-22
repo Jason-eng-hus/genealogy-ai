@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { isIP } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
@@ -14,6 +15,56 @@ export const DEFAULT_BACKUP_DIR = path.join(PROJECT_ROOT, 'data', 'backups');
 
 export const APP_ENVS = ['development', 'test', 'production'] as const;
 export type AppEnv = (typeof APP_ENVS)[number];
+
+export const LOG_LEVELS = [
+  'fatal',
+  'error',
+  'warn',
+  'info',
+  'debug',
+  'trace',
+  'silent',
+] as const;
+export type LogLevel = (typeof LOG_LEVELS)[number];
+
+export type ServerConfigErrorCode =
+  | 'PORT_INVALID'
+  | 'HOST_INVALID'
+  | 'TRUST_PROXY_INVALID'
+  | 'LOG_LEVEL_INVALID';
+
+export class ServerConfigError extends Error {
+  readonly code: ServerConfigErrorCode;
+
+  constructor(
+    code: ServerConfigErrorCode,
+    message: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = 'ServerConfigError';
+    this.code = code;
+  }
+}
+
+export interface ServerConfig {
+  appEnv: AppEnv;
+  host: string;
+  port: number;
+  trustProxy: boolean | number;
+  logLevel: LogLevel;
+}
+
+export interface AppConfig {
+  server: ServerConfig;
+  database: DatabaseConfig;
+}
+
+export interface LoadAppConfigOptions {
+  dotEnvPath?: string;
+  env?: NodeJS.ProcessEnv;
+  loadDotEnvFile?: boolean;
+}
 
 export type DatabaseConfigErrorCode =
   | 'ENV_FILE_UNREADABLE'
@@ -140,6 +191,99 @@ function resolveAppEnv(raw: string | undefined): AppEnv {
   return value as AppEnv;
 }
 
+function resolvePort(raw: string | undefined): number {
+  const value = raw?.trim();
+
+  if (!value) {
+    return 4000;
+  }
+
+  if (!/^\d+$/.test(value)) {
+    throw new ServerConfigError(
+      'PORT_INVALID',
+      'PORT must be an integer between 0 and 65535.',
+    );
+  }
+
+  const port = Number(value);
+
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new ServerConfigError(
+      'PORT_INVALID',
+      'PORT must be an integer between 0 and 65535.',
+    );
+  }
+
+  return port;
+}
+
+function resolveHost(raw: string | undefined): string {
+  const value = raw?.trim();
+
+  if (!value) {
+    return '127.0.0.1';
+  }
+
+  if (value !== 'localhost' && isIP(value) === 0) {
+    throw new ServerConfigError(
+      'HOST_INVALID',
+      'HOST must be "localhost" or a valid IPv4/IPv6 address.',
+    );
+  }
+
+  return value;
+}
+
+function resolveTrustProxy(raw: string | undefined): boolean | number {
+  const value = raw?.trim().toLowerCase();
+
+  if (!value || value === 'false') {
+    return false;
+  }
+
+  if (value === 'true') {
+    return true;
+  }
+
+  if (/^\d+$/.test(value)) {
+    return Number(value);
+  }
+
+  throw new ServerConfigError(
+    'TRUST_PROXY_INVALID',
+    'TRUST_PROXY must be "true", "false", or a non-negative integer hop count.',
+  );
+}
+
+function resolveLogLevel(raw: string | undefined): LogLevel {
+  const value = raw?.trim().toLowerCase();
+
+  if (!value) {
+    return 'info';
+  }
+
+  if (!LOG_LEVELS.includes(value as LogLevel)) {
+    throw new ServerConfigError(
+      'LOG_LEVEL_INVALID',
+      `LOG_LEVEL must be one of: ${LOG_LEVELS.join(', ')}.`,
+    );
+  }
+
+  return value as LogLevel;
+}
+
+export function resolveServerConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): ServerConfig {
+  return {
+    appEnv: resolveAppEnv(env.NODE_ENV),
+    host: resolveHost(env.HOST),
+    port: resolvePort(env.PORT),
+    trustProxy: resolveTrustProxy(env.TRUST_PROXY),
+    logLevel: resolveLogLevel(env.LOG_LEVEL),
+  };
+}
+
 function resolveDatabaseFilePath(pathPart: string): string {
   if (pathPart === ':memory:' || pathPart.startsWith(':memory:')) {
     throw new DatabaseConfigError(
@@ -240,6 +384,27 @@ export function loadDatabaseConfig(
   }
 
   return resolveDatabaseConfig(env);
+}
+
+export function resolveAppConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): AppConfig {
+  return {
+    server: resolveServerConfig(env),
+    database: resolveDatabaseConfig(env),
+  };
+}
+
+export function loadAppConfig(
+  options: LoadAppConfigOptions = {},
+): AppConfig {
+  const env = options.env ?? process.env;
+
+  if (options.loadDotEnvFile !== false) {
+    loadEnvFile(options.dotEnvPath ?? path.join(PROJECT_ROOT, '.env'), env);
+  }
+
+  return resolveAppConfig(env);
 }
 
 export function isSameOrNestedDirectory(parent: string, child: string): boolean {

@@ -17,17 +17,25 @@
     "db:status": "node --experimental-strip-types scripts/db-status.ts",
     "db:reset": "node --experimental-strip-types scripts/db-reset.ts",
     "backup": "node --experimental-strip-types scripts/backup.ts",
+    "dev:server": "node --watch --experimental-strip-types server/src/main.ts",
+    "start:server": "node --experimental-strip-types server/src/main.ts",
     "test": "vitest run"
   },
   "prisma": {
     "schema": "server/prisma/schema.prisma"
   },
   "dependencies": {
-    "@prisma/client": "^6.0.0"
+    "@prisma/client": "^6.0.0",
+    "express": "^4.22.3",
+    "helmet": "^8.3.0",
+    "pino": "^9.14.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.25",
     "@types/node": "^24.0.0",
+    "@types/supertest": "^6.0.3",
     "prisma": "^6.0.0",
+    "supertest": "^7.3.1",
     "typescript": "^5.0.0",
     "vitest": "^3.0.0"
   }
